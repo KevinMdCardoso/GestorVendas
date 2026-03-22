@@ -1,0 +1,199 @@
+@page "/gerente/produtos"
+@attribute [Authorize(Roles = "Gerente")]
+@inject IProdutoService ProdutoService
+@inject SessaoService Sessao
+
+<PageTitle>Produtos — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Produtos</h4>
+        <p class="text-muted small mb-0">Gerencie o catálogo de produtos da loja</p>
+    </div>
+    <button class="btn btn-primary" @onclick="AbrirNovo">
+        <i class="bi bi-plus-lg me-1"></i>Novo produto
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(_msg))
+{
+    <div class="alert @(_sucesso?"alert-success":"alert-danger") alert-dismissible py-2 small mb-3">
+        @_msg <button class="btn-close btn-sm" @onclick="()=>_msg=string.Empty"></button>
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <input @bind="_busca" @bind:event="oninput" @onkeyup="Buscar"
+               class="form-control" placeholder="Buscar produto..." style="max-width:320px" />
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead><tr>
+                    <th>Nome</th><th>Preço</th><th>Estoque</th>
+                    <th>Mín.</th><th>Status</th><th class="text-end">Ações</th>
+                </tr></thead>
+                <tbody>
+                    @if (_produtos == null)
+                    {
+                        <tr><td colspan="6" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                        </td></tr>
+                    }
+                    else foreach (var p in _produtos)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-medium">@p.Nome</div>
+                                @if (!string.IsNullOrEmpty(p.Descricao))
+                                {<div class="text-muted small">@p.Descricao</div>}
+                            </td>
+                            <td class="fw-medium">R$ @p.PrecoVenda.ToString("N2")</td>
+                            <td>@p.EstoqueAtual un</td>
+                            <td class="text-muted">@p.EstoqueMinimo un</td>
+                            <td>
+                                <span class="badge badge-@p.StatusEstoque.ToLower()">
+                                    @p.StatusEstoque
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-link btn-sm text-primary p-0 me-3"
+                                        @onclick="()=>AbrirEdicao(p)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-link btn-sm text-danger p-0"
+                                        @onclick="()=>Desativar(p.Id)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* Modal *@
+@if (_modal)
+{
+    <div class="modal d-block" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_editando==null?"Novo produto":"Editar produto")</h5>
+                    <button class="btn-close" @onclick="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nome *</label>
+                            <input @bind="_nome" class="form-control" placeholder="Nome do produto" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descrição</label>
+                            <input @bind="_descricao" class="form-control" placeholder="Opcional" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Preço de venda *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input @bind="_preco" type="number" step="0.01" class="form-control" />
+                            </div>
+                        </div>
+                        @if (_editando == null)
+                        {
+                            <div class="col-md-4">
+                                <label class="form-label">Estoque inicial</label>
+                                <input @bind="_estoqueInicial" type="number" class="form-control" min="0" />
+                            </div>
+                        }
+                        <div class="col-md-4">
+                            <label class="form-label">Estoque mínimo</label>
+                            <input @bind="_estoqueMin" type="number" class="form-control" min="0" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="Fechar">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="Salvar" disabled="@_salvando">
+                        @(_salvando?"Salvando...":"Salvar")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    IEnumerable<ProdutoDto>? _produtos;
+    ProdutoDto? _editando;
+    bool _modal, _salvando, _sucesso;
+    string _msg="", _busca="", _nome="", _descricao="";
+    decimal _preco;
+    int _estoqueInicial, _estoqueMin=5;
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _produtos = await ProdutoService.ListarAsync(Sessao.EmpresaId.Value);
+    }
+
+    async Task Buscar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _produtos = await ProdutoService.ListarAsync(Sessao.EmpresaId.Value,
+            _busca.Length >= 2 ? _busca : null);
+    }
+
+    void AbrirNovo() { _editando=null; LimparForm(); _modal=true; }
+
+    void AbrirEdicao(ProdutoDto p)
+    {
+        _editando=p; _nome=p.Nome; _descricao=p.Descricao??"";
+        _preco=p.PrecoVenda; _estoqueMin=p.EstoqueMinimo; _modal=true;
+    }
+
+    void LimparForm() => (_nome,_descricao,_preco,_estoqueInicial,_estoqueMin)=("","",0,0,5);
+    void Fechar() { _modal=false; LimparForm(); }
+
+    async Task Salvar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _salvando=true;
+        try
+        {
+            if (_editando==null)
+                await ProdutoService.CriarAsync(
+                    new CriarProdutoRequest(_nome,_descricao,_preco,_estoqueInicial,_estoqueMin),
+                    Sessao.EmpresaId.Value, Sessao.UsuarioId);
+            else
+                await ProdutoService.AtualizarAsync(_editando.Id,
+                    new AtualizarProdutoRequest(_nome,_descricao,_preco,_estoqueMin),
+                    Sessao.EmpresaId.Value);
+
+            _msg=_editando==null?"Produto criado!":"Produto atualizado!"; _sucesso=true;
+            await Carregar(); Fechar();
+        }
+        catch(Exception ex){ _msg=ex.Message; _sucesso=false; }
+        finally{ _salvando=false; }
+    }
+
+    async Task Desativar(Guid id)
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        try
+        {
+            await ProdutoService.DesativarAsync(id, Sessao.EmpresaId.Value);
+            _msg="Produto removido."; _sucesso=true;
+            await Carregar();
+        }
+        catch(Exception ex){ _msg=ex.Message; _sucesso=false; }
+    }
+}

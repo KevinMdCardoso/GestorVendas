@@ -1,0 +1,163 @@
+@page "/gerente/relatorios"
+@attribute [Authorize(Roles = "Gerente")]
+@inject IRelatorioService RelatorioService
+@inject SessaoService Sessao
+
+<PageTitle>Relatórios — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Relatórios</h4>
+        <p class="text-muted small mb-0">Análise de vendas por período</p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-sm-4">
+                <label class="form-label">Data inicial</label>
+                <input @bind="_inicio" type="date" class="form-control" />
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label">Data final</label>
+                <input @bind="_fim" type="date" class="form-control" />
+            </div>
+            <div class="col-sm-4">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="()=>AtalhoMes(0)">Mês atual</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="()=>AtalhoMes(-1)">Mês anterior</button>
+                </div>
+                <button class="btn btn-primary w-100 mt-2" @onclick="Gerar">
+                    <i class="bi bi-bar-chart-line me-1"></i>Gerar relatório
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (_carregando)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else if (_relatorio != null)
+{
+    @* KPIs *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Receita bruta</div>
+                <div class="metric-value" style="font-size:1.3rem">R$ @_relatorio.TotalBruto.ToString("N2")</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Descontos</div>
+                <div class="metric-value" style="font-size:1.3rem;color:#ef4444">- R$ @_relatorio.TotalDescontos.ToString("N2")</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Receita líquida</div>
+                <div class="metric-value" style="font-size:1.3rem;color:#22c55e">R$ @_relatorio.TotalLiquido.ToString("N2")</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Ticket médio</div>
+                <div class="metric-value" style="font-size:1.3rem">R$ @_relatorio.TicketMedio.ToString("N2")</div>
+                <div class="metric-sub" style="color:#64748b">@_relatorio.QuantidadeVendas vendas</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        @* Vendas por dia *@
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-calendar3 me-2"></i>Vendas por dia
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead><tr>
+                                <th>Data</th><th>Qtd. vendas</th><th class="text-end">Total</th>
+                            </tr></thead>
+                            <tbody>
+                                @foreach (var d in _relatorio.VendasPorDia)
+                                {
+                                    <tr>
+                                        <td>@d.Data.ToString("dd/MM/yyyy")</td>
+                                        <td>@d.Quantidade</td>
+                                        <td class="text-end fw-medium">R$ @d.Total.ToString("N2")</td>
+                                    </tr>
+                                }
+                                @if (!_relatorio.VendasPorDia.Any())
+                                {
+                                    <tr><td colspan="3" class="text-center text-muted py-3 small">Sem dados.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Produtos mais vendidos *@
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-trophy me-2"></i>Produtos mais vendidos
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm mb-0">
+                            <thead><tr>
+                                <th>#</th><th>Produto</th><th>Qtd.</th><th class="text-end">Receita</th>
+                            </tr></thead>
+                            <tbody>
+                                @foreach (var (p, i) in _relatorio.ProdutosMaisVendidos.Select((p, i) => (p, i + 1)))
+                                {
+                                    <tr>
+                                        <td class="text-muted">@i</td>
+                                        <td class="fw-medium">@p.Nome</td>
+                                        <td>@p.QuantidadeVendida</td>
+                                        <td class="text-end text-success">R$ @p.ReceitaTotal.ToString("N2")</td>
+                                    </tr>
+                                }
+                                @if (!_relatorio.ProdutosMaisVendidos.Any())
+                                {
+                                    <tr><td colspan="4" class="text-center text-muted py-3 small">Sem dados.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    RelatorioVendasDto? _relatorio;
+    DateTime _inicio = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+    DateTime _fim    = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+    bool _carregando;
+
+    void AtalhoMes(int offset)
+    {
+        var ref_ = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddMonths(offset), DateTimeKind.Utc);
+        _inicio = new DateTime(ref_.Year, ref_.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        _fim    = _inicio.AddMonths(1).AddDays(-1);
+    }
+
+    async Task Gerar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _carregando = true;
+        _relatorio = await RelatorioService.VendasPorPeriodoAsync(
+            Sessao.EmpresaId.Value, _inicio, _fim.AddDays(1).AddTicks(-1));
+        _carregando = false;
+    }
+}

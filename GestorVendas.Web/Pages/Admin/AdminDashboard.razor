@@ -1,0 +1,106 @@
+@* ── ADMIN DASHBOARD ──────────────────────────────────────── *@
+@page "/admin/dashboard"
+@attribute [Authorize(Roles = "Admin")]
+@inject IEmpresaService EmpresaService
+
+<PageTitle>Painel Admin — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Painel do Sistema</h4>
+        <p class="text-muted small mb-0">Visão geral das empresas cadastradas</p>
+    </div>
+</div>
+
+@if (_empresas == null)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Empresas ativas</div>
+                        <div class="metric-value">@_empresas.Count()</div>
+                    </div>
+                    <div class="metric-icon" style="background:#eff6ff">
+                        <i class="bi bi-building text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Total usuários</div>
+                        <div class="metric-value">@_empresas.Sum(e => e.TotalUsuarios)</div>
+                    </div>
+                    <div class="metric-icon" style="background:#f0fdf4">
+                        <i class="bi bi-people text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Total produtos</div>
+                        <div class="metric-value">@_empresas.Sum(e => e.TotalProdutos)</div>
+                    </div>
+                    <div class="metric-icon" style="background:#fff7ed">
+                        <i class="bi bi-box-seam" style="color:#f59e0b"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-building me-2"></i>Empresas cadastradas</span>
+            <a href="/admin/empresas" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-lg me-1"></i>Nova empresa
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr>
+                        <th>Nome fantasia</th><th>CNPJ</th>
+                        <th>Usuários</th><th>Produtos</th><th>Status</th>
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var e in _empresas)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-medium">@e.NomeFantasia</div>
+                                    <div class="text-muted small">@e.RazaoSocial</div>
+                                </td>
+                                <td class="text-muted">@e.Cnpj</td>
+                                <td>@e.TotalUsuarios</td>
+                                <td>@e.TotalProdutos</td>
+                                <td>
+                                    <span class="badge @(e.Ativo ? "bg-success" : "bg-secondary")">
+                                        @(e.Ativo ? "Ativa" : "Inativa")
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    IEnumerable<EmpresaDto>? _empresas;
+    protected override async Task OnInitializedAsync() =>
+        _empresas = await EmpresaService.ListarAsync();
+}

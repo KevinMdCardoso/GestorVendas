@@ -1,0 +1,62 @@
+@page "/login"
+@layout EmptyLayout
+
+<PageTitle>Login — Gestor de Vendas</PageTitle>
+
+<div class="d-flex align-items-center justify-content-center" style="min-height:100vh; background:#f8fafc">
+    <div style="width:100%; max-width:380px; padding:1rem">
+
+        <div class="text-center mb-4">
+            <div style="width:56px;height:56px;background:#3b82f6;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:.75rem">
+                <i class="bi bi-shop text-white" style="font-size:1.5rem"></i>
+            </div>
+            <h4 class="fw-bold mb-0" style="color:#1e293b">Gestor de Vendas</h4>
+            <p class="text-muted small mt-1">Entre com sua conta para continuar</p>
+        </div>
+
+        <div class="card border-0 shadow-sm p-4">
+            <form method="post" action="/conta/entrar">
+
+                @if (Erro is not null)
+                {
+                    <div class="alert alert-danger py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        @(Erro == "credenciais" ? "Login ou senha inválidos." : "Erro ao conectar com o servidor. Tente novamente.")
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Login</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="bi bi-person text-muted"></i>
+                        </span>
+                        <input name="Login" type="text" class="form-control border-start-0 ps-0"
+                               placeholder="seu login" autocomplete="username" required />
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Senha</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="bi bi-lock text-muted"></i>
+                        </span>
+                        <input name="Senha" type="password" class="form-control border-start-0 ps-0"
+                               placeholder="••••••••" autocomplete="current-password" required />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>
+                    <span>Entrar</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "erro")]
+    public string? Erro { get; set; }
+}

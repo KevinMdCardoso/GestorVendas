@@ -1,0 +1,182 @@
+@page "/admin/empresas"
+@attribute [Authorize(Roles = "Admin")]
+@inject IEmpresaService EmpresaService
+
+<PageTitle>Empresas — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Empresas</h4>
+        <p class="text-muted small mb-0">Gerencie as empresas do sistema</p>
+    </div>
+    <button class="btn btn-primary" @onclick="AbrirNova">
+        <i class="bi bi-plus-lg me-1"></i>Nova empresa
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(_msg))
+{
+    <div class="alert @(_sucesso ? "alert-success" : "alert-danger") alert-dismissible py-2 small">
+        @_msg <button type="button" class="btn-close btn-sm" @onclick="() => _msg = string.Empty"></button>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr>
+                    <th>Empresa</th><th>CNPJ</th><th>Contato</th>
+                    <th>Usuários</th><th>Status</th><th></th>
+                </tr></thead>
+                <tbody>
+                    @if (_empresas == null)
+                    {
+                        <tr><td colspan="6" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                        </td></tr>
+                    }
+                    else foreach (var e in _empresas)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-medium">@e.NomeFantasia</div>
+                                <div class="text-muted small">@e.RazaoSocial</div>
+                            </td>
+                            <td class="text-muted small">@e.Cnpj</td>
+                            <td class="text-muted small">
+                                <div>@(e.Email ?? "—")</div>
+                                <div>@(e.Telefone ?? "")</div>
+                            </td>
+                            <td>@e.TotalUsuarios</td>
+                            <td><span class="badge @(e.Ativo ? "bg-success" : "bg-secondary")">
+                                @(e.Ativo ? "Ativa" : "Inativa")
+                            </span></td>
+                            <td>
+                                <button class="btn btn-link btn-sm p-0 text-primary me-2"
+                                        @onclick="() => AbrirEdicao(e)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* Modal nova/editar empresa *@
+@if (_modal)
+{
+    <div class="modal d-block" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_editando == null ? "Nova empresa" : "Editar empresa")</h5>
+                    <button class="btn-close" @onclick="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Razão social *</label>
+                            <input @bind="_razaoSocial" class="form-control" placeholder="Razão Social Ltda" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nome fantasia *</label>
+                            <input @bind="_nomeFantasia" class="form-control" placeholder="Nome da loja" />
+                        </div>
+                        @if (_editando == null)
+                        {
+                            <div class="col-md-4">
+                                <label class="form-label">CNPJ *</label>
+                                <input @bind="_cnpj" class="form-control" placeholder="00.000.000/0001-00" />
+                            </div>
+                        }
+                        <div class="col-md-4">
+                            <label class="form-label">Telefone</label>
+                            <input @bind="_telefone" class="form-control" placeholder="(54) 99999-9999" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">E-mail</label>
+                            <input @bind="_email" class="form-control" placeholder="contato@empresa.com" />
+                        </div>
+                        @if (_editando == null)
+                        {
+                            <div class="col-12"><hr class="my-1" /><h6 class="text-muted small text-uppercase">Gerente inicial</h6></div>
+                            <div class="col-md-4">
+                                <label class="form-label">Nome do gerente *</label>
+                                <input @bind="_gerenteNome" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Login *</label>
+                                <input @bind="_gerenteLogin" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Senha *</label>
+                                <input @bind="_gerenteSenha" type="password" class="form-control" />
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="Fechar">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="Salvar" disabled="@_salvando">
+                        @(_salvando ? "Salvando..." : "Salvar")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    IEnumerable<EmpresaDto>? _empresas;
+    EmpresaDto? _editando;
+    bool _modal, _salvando, _sucesso;
+    string _msg = "", _razaoSocial = "", _nomeFantasia = "", _cnpj = "",
+           _telefone = "", _email = "", _gerenteNome = "", _gerenteLogin = "", _gerenteSenha = "";
+
+    protected override async Task OnInitializedAsync() =>
+        _empresas = await EmpresaService.ListarAsync();
+
+    void AbrirNova() { _editando = null; LimparForm(); _modal = true; }
+
+    void AbrirEdicao(EmpresaDto e)
+    {
+        _editando = e;
+        _razaoSocial = e.RazaoSocial; _nomeFantasia = e.NomeFantasia;
+        _telefone = e.Telefone ?? ""; _email = e.Email ?? "";
+        _modal = true;
+    }
+
+    void LimparForm() => (_razaoSocial, _nomeFantasia, _cnpj, _telefone, _email,
+        _gerenteNome, _gerenteLogin, _gerenteSenha) = ("", "", "", "", "", "", "", "");
+
+    void Fechar() { _modal = false; LimparForm(); }
+
+    async Task Salvar()
+    {
+        _salvando = true;
+        try
+        {
+            if (_editando == null)
+            {
+                await EmpresaService.CriarAsync(new CriarEmpresaRequest(
+                    _razaoSocial, _nomeFantasia, _cnpj, _telefone, _email,
+                    _gerenteNome, _gerenteLogin, _gerenteSenha));
+                _msg = "Empresa criada com sucesso!"; _sucesso = true;
+            }
+            else
+            {
+                await EmpresaService.AtualizarAsync(_editando.Id,
+                    new AtualizarEmpresaRequest(_razaoSocial, _nomeFantasia, _telefone, _email));
+                _msg = "Empresa atualizada!"; _sucesso = true;
+            }
+            _empresas = await EmpresaService.ListarAsync();
+            Fechar();
+        }
+        catch (Exception ex) { _msg = ex.Message; _sucesso = false; }
+        finally { _salvando = false; }
+    }
+}

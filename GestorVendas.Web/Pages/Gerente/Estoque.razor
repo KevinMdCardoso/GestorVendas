@@ -1,0 +1,202 @@
+@* ── ESTOQUE ───────────────────────────────────────────────── *@
+@page "/gerente/estoque"
+@attribute [Authorize(Roles = "Gerente")]
+@inject IProdutoService ProdutoService
+@inject SessaoService Sessao
+
+<PageTitle>Estoque — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Estoque</h4>
+        <p class="text-muted small mb-0">Entradas e movimentações de produtos</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="()=>_abaAtiva=0">
+            <i class="bi bi-list-ul me-1"></i>Produtos
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="()=>_abaAtiva=1">
+            <i class="bi bi-clock-history me-1"></i>Movimentações
+        </button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(_msg))
+{
+    <div class="alert @(_sucesso?"alert-success":"alert-danger") py-2 small mb-3">@_msg</div>
+}
+
+@if (_abaAtiva == 0)
+{
+    @* Alertas *@
+    @if (_alertas?.Any() == true)
+    {
+        <div class="alerta-estoque mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>@_alertas.Count() produto(s)</strong> com estoque abaixo do mínimo:
+            @string.Join(", ", _alertas.Select(a => a.Nome))
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead><tr>
+                        <th>Produto</th><th>Estoque atual</th><th>Mínimo</th><th>Status</th><th class="text-end">Ações</th>
+                    </tr></thead>
+                    <tbody>
+                        @if (_produtos == null)
+                        {
+                            <tr><td colspan="5" class="text-center py-4">
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
+                            </td></tr>
+                        }
+                        else foreach (var p in _produtos)
+                        {
+                            <tr>
+                                <td class="fw-medium">@p.Nome</td>
+                                <td>
+                                    <span class="fw-bold @(p.EstoqueAtual <= 0 ? "text-danger" : "")">
+                                        @p.EstoqueAtual
+                                    </span> un
+                                </td>
+                                <td class="text-muted">@p.EstoqueMinimo un</td>
+                                <td><span class="badge badge-@p.StatusEstoque.ToLower()">@p.StatusEstoque</span></td>
+                                <td class="text-end">
+                                    <button class="btn btn-success btn-sm me-1"
+                                            @onclick="()=>AbrirEntrada(p)">
+                                        <i class="bi bi-plus-lg me-1"></i>Entrada
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            @onclick="()=>AbrirAjuste(p)">
+                                        Ajustar
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead><tr>
+                        <th>Produto</th><th>Tipo</th><th>Qtd</th>
+                        <th>Antes → Depois</th><th>Observação</th><th>Usuário</th><th>Data</th>
+                    </tr></thead>
+                    <tbody>
+                        @if (_movimentacoes == null)
+                        {
+                            <tr><td colspan="7" class="text-center py-4">
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
+                            </td></tr>
+                        }
+                        else foreach (var m in _movimentacoes)
+                        {
+                            <tr>
+                                <td class="fw-medium">@m.ProdutoNome</td>
+                                <td>
+                                    <span class="badge @(m.Tipo=="Entrada"?"bg-success":m.Tipo=="Saida"?"bg-danger":"bg-secondary")">
+                                        @m.Tipo
+                                    </span>
+                                </td>
+                                <td>@m.Quantidade un</td>
+                                <td class="text-muted small">@m.EstoqueAnterior → @m.EstoquePosterior</td>
+                                <td class="text-muted small">@(m.Observacao ?? "—")</td>
+                                <td class="text-muted small">@(m.UsuarioNome ?? "—")</td>
+                                <td class="text-muted small">@m.CriadoEm.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal entrada/ajuste *@
+@if (_modalEstoque)
+{
+    <div class="modal d-block" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_tipoModal=="Entrada"?"Entrada de estoque":"Ajuste de estoque")</h5>
+                    <button class="btn-close" @onclick="()=>_modalEstoque=false"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fw-medium mb-3">@_produtoSelecionado?.Nome</p>
+                    <p class="text-muted small mb-3">Estoque atual: <strong>@_produtoSelecionado?.EstoqueAtual un</strong></p>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            @(_tipoModal=="Entrada" ? "Quantidade a adicionar" : "Nova quantidade total")
+                        </label>
+                        <input @bind="_qtdModal" type="number" min="0" class="form-control" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Observação</label>
+                        <input @bind="_obsModal" class="form-control" placeholder="Opcional" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="()=>_modalEstoque=false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="ConfirmarMovimentacao" disabled="@_salvando">
+                        @(_salvando?"...":"Confirmar")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    IEnumerable<ProdutoDto>? _produtos;
+    IEnumerable<ProdutoEstoqueBaixoDto>? _alertas;
+    IEnumerable<MovimentacaoDto>? _movimentacoes;
+    ProdutoDto? _produtoSelecionado;
+    int _abaAtiva, _qtdModal;
+    bool _modalEstoque, _salvando, _sucesso;
+    string _msg="", _tipoModal="", _obsModal="";
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _produtos = await ProdutoService.ListarAsync(Sessao.EmpresaId.Value);
+        _alertas = await ProdutoService.ListarEstoqueBaixoAsync(Sessao.EmpresaId.Value);
+        _movimentacoes = await ProdutoService.ListarMovimentacoesAsync(Sessao.EmpresaId.Value);
+    }
+
+    void AbrirEntrada(ProdutoDto p) { _produtoSelecionado=p; _tipoModal="Entrada"; _qtdModal=0; _obsModal=""; _modalEstoque=true; }
+    void AbrirAjuste(ProdutoDto p) { _produtoSelecionado=p; _tipoModal="Ajuste"; _qtdModal=p.EstoqueAtual; _obsModal=""; _modalEstoque=true; }
+
+    async Task ConfirmarMovimentacao()
+    {
+        if (_produtoSelecionado==null || !Sessao.EmpresaId.HasValue) return;
+        _salvando=true;
+        try
+        {
+            if (_tipoModal=="Entrada")
+                await ProdutoService.EntradaEstoqueAsync(
+                    new EntradaEstoqueRequest(_produtoSelecionado.Id, _qtdModal, _obsModal),
+                    Sessao.EmpresaId.Value, Sessao.UsuarioId);
+            else
+                await ProdutoService.AjusteEstoqueAsync(
+                    new AjusteEstoqueRequest(_produtoSelecionado.Id, _qtdModal, _obsModal),
+                    Sessao.EmpresaId.Value, Sessao.UsuarioId);
+            _msg="Estoque atualizado!"; _sucesso=true;
+            _modalEstoque=false;
+            await Carregar();
+        }
+        catch(Exception ex){ _msg=ex.Message; _sucesso=false; }
+        finally{ _salvando=false; }
+    }
+}

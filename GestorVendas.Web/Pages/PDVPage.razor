@@ -1,0 +1,276 @@
+@page "/gerente/pdv"
+@page "/operador/pdv"
+@attribute [Authorize(Roles = "Gerente,Operador")]
+@inject IProdutoService ProdutoService
+@inject IVendaService VendaService
+@inject IConfiguracaoService ConfigService
+@inject SessaoService Sessao
+
+<PageTitle>Caixa / PDV — Gestor de Vendas</PageTitle>
+
+<div class="row g-3" style="min-height:calc(100vh - 100px)">
+
+    @* ── Produtos ── *@
+    <div class="col-md-7 col-lg-8">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <h5 class="fw-bold mb-0 me-2">PDV</h5>
+            <input @bind="_busca" @bind:event="oninput" @onkeyup="BuscarKeyUp"
+                   class="form-control" placeholder="Buscar produto..." style="max-width:280px" />
+        </div>
+
+        @if (_carregando)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+        }
+        else
+        {
+            <div class="row g-2">
+                @foreach (var p in _produtos)
+                {
+                    <div class="col-6 col-sm-4 col-xl-3">
+                        <button class="pdv-produto-btn" @onclick="() => AdicionarProduto(p)"
+                                disabled="@(p.EstoqueAtual <= 0)">
+                            <div class="pdv-produto-nome">@p.Nome</div>
+                            <div class="pdv-produto-preco">R$ @p.PrecoVenda.ToString("N2")</div>
+                            <div class="pdv-produto-estoque @(p.EstoqueAtual <= 0 ? "text-danger" : "")">
+                                @(p.EstoqueAtual > 0 ? $"{p.EstoqueAtual} un" : "Sem estoque")
+                            </div>
+                        </button>
+                    </div>
+                }
+                @if (!_produtos.Any())
+                {
+                    <div class="col-12 text-center text-muted py-5 small">
+                        Nenhum produto encontrado.
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @* ── Carrinho ── *@
+    <div class="col-md-5 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cart3 me-2"></i>
+                    @(_venda != null ? $"Venda {_venda.Numero}" : "Carrinho")
+                </span>
+                @if (_venda != null && !_mostrarFinalizar)
+                {
+                    <button class="btn btn-link btn-sm text-danger p-0"
+                            @onclick="CancelarVenda">Cancelar venda</button>
+                }
+            </div>
+
+            <div class="card-body d-flex flex-column p-0">
+                @* Itens *@
+                <div class="flex-grow-1 overflow-auto px-3" style="max-height:380px">
+                    @if (_venda == null || !_venda.Itens.Any())
+                    {
+                        <div class="text-center text-muted py-5 small">
+                            <i class="bi bi-cart3 d-block mb-2" style="font-size:2rem;opacity:.3"></i>
+                            Clique em um produto para adicionar
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var item in _venda.Itens)
+                        {
+                            <div class="carrinho-item">
+                                <div class="flex-grow-1">
+                                    <div class="small fw-medium">@item.ProdutoNome</div>
+                                    <div style="font-size:.75rem;color:#94a3b8">
+                                        @item.Quantidade × R$ @item.PrecoUnitario.ToString("N2")
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="small fw-medium">R$ @item.Total.ToString("N2")</span>
+                                    <button class="btn btn-link btn-sm text-danger p-0"
+                                            @onclick="() => RemoverItem(item.Id)">
+                                        <i class="bi bi-x-lg" style="font-size:.75rem"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                @* Totais e finalização *@
+                <div class="p-3 border-top">
+                    @if (_venda != null)
+                    {
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Subtotal</span>
+                            <span>R$ @_venda.SubTotal.ToString("N2")</span>
+                        </div>
+                        @if (_venda.ValorDesconto > 0)
+                        {
+                            <div class="d-flex justify-content-between small text-success mb-1">
+                                <span>Desconto (@_venda.PercentualDesconto%)</span>
+                                <span>- R$ @_venda.ValorDesconto.ToString("N2")</span>
+                            </div>
+                        }
+                    }
+
+                    <div class="d-flex justify-content-between fw-bold mb-3">
+                        <span>Total</span>
+                        <span class="text-primary fs-5">R$ @(_venda?.Total.ToString("N2") ?? "0,00")</span>
+                    </div>
+
+                    @if (_mostrarFinalizar)
+                    {
+                        @* Desconto — somente gerente *@
+                        @if (Sessao.IsGerente && _descontoMax > 0)
+                        {
+                            <div class="mb-2">
+                                <label class="form-label">Desconto (máx. @_descontoMax%)</label>
+                                <div class="input-group input-group-sm">
+                                    <input @bind="_desconto" type="number" min="0" max="@_descontoMax" step="0.5"
+                                           class="form-control" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="mb-2">
+                            <label class="form-label">Forma de pagamento</label>
+                            <select @bind="_formaPagamento" class="form-select form-select-sm">
+                                <option value="@FormaPagamento.Dinheiro">Dinheiro</option>
+                                <option value="@FormaPagamento.CartaoDebito">Cartão Débito</option>
+                                <option value="@FormaPagamento.CartaoCredito">Cartão Crédito</option>
+                                <option value="@FormaPagamento.Pix">PIX</option>
+                            </select>
+                        </div>
+
+                        @if (_formaPagamento == FormaPagamento.Dinheiro)
+                        {
+                            <div class="mb-2">
+                                <label class="form-label">Valor recebido</label>
+                                <input @bind="_valorRecebido" type="number" step="0.01"
+                                       class="form-control form-control-sm" placeholder="0,00" />
+                                @if (_valorRecebido > 0 && _venda != null)
+                                {
+                                    <div class="small mt-1 @(_valorRecebido >= _venda.Total ? "text-success" : "text-danger")">
+                                        Troco: R$ @((_valorRecebido - _venda.Total).ToString("N2"))
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success flex-grow-1"
+                                    @onclick="FinalizarVenda" disabled="@_processando">
+                                @if (_processando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                <i class="bi bi-check2-circle me-1"></i>Finalizar
+                            </button>
+                            <button class="btn btn-outline-secondary"
+                                    @onclick="() => _mostrarFinalizar = false">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary w-100"
+                                @onclick="() => _mostrarFinalizar = true"
+                                disabled="@(_venda == null || !_venda.Itens.Any())">
+                            <i class="bi bi-check2-circle me-1"></i>Finalizar venda
+                        </button>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_msg))
+                    {
+                        <div class="alert @(_sucesso ? "alert-success" : "alert-danger") py-2 small mt-2">
+                            @_msg
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<ProdutoDto> _produtos = new();
+    VendaDto? _venda;
+    string _busca = "", _msg = "";
+    bool _carregando, _processando, _mostrarFinalizar, _sucesso;
+    FormaPagamento _formaPagamento = FormaPagamento.Dinheiro;
+    decimal _valorRecebido, _desconto, _descontoMax;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarProdutos();
+        if (Sessao.IsGerente && Sessao.EmpresaId.HasValue)
+        {
+            var cfg = await ConfigService.ObterAsync(Sessao.EmpresaId.Value);
+            _descontoMax = cfg.DescontoMaximoPermitido;
+        }
+    }
+
+    async Task CarregarProdutos()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _carregando = true;
+        _produtos = (await ProdutoService.ListarAsync(
+            Sessao.EmpresaId.Value, _busca.Length >= 2 ? _busca : null)).ToList();
+        _carregando = false;
+    }
+
+    async Task BuscarKeyUp(KeyboardEventArgs e)
+    {
+        if (_busca.Length == 0 || _busca.Length >= 2) await CarregarProdutos();
+    }
+
+    async Task AdicionarProduto(ProdutoDto p)
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _msg = "";
+        try
+        {
+            _venda ??= await VendaService.IniciarAsync(Sessao.EmpresaId.Value, Sessao.UsuarioId);
+            _venda = await VendaService.AdicionarItemAsync(
+                _venda.Id, new AdicionarItemRequest(p.Id, 1), Sessao.EmpresaId.Value);
+        }
+        catch (Exception ex) { _msg = ex.Message; _sucesso = false; }
+    }
+
+    async Task RemoverItem(Guid itemId)
+    {
+        if (_venda == null || !Sessao.EmpresaId.HasValue) return;
+        _venda = await VendaService.RemoverItemAsync(_venda.Id, itemId, Sessao.EmpresaId.Value);
+    }
+
+    async Task FinalizarVenda()
+    {
+        if (_venda == null || !Sessao.EmpresaId.HasValue) return;
+        _processando = true; _msg = "";
+        try
+        {
+            var pct = Sessao.IsGerente ? _desconto : 0;
+            _venda = await VendaService.FinalizarAsync(_venda.Id,
+                new FinalizarVendaRequest(_formaPagamento,
+                    _formaPagamento == FormaPagamento.Dinheiro && _valorRecebido > 0 ? _valorRecebido : null,
+                    pct, null),
+                Sessao.EmpresaId.Value);
+            _msg = $"✓ Venda {_venda.Numero} finalizada! Total: R$ {_venda.Total:N2}";
+            _sucesso = true;
+            _mostrarFinalizar = false;
+            _venda = null; _desconto = 0; _valorRecebido = 0;
+            _formaPagamento = FormaPagamento.Dinheiro;
+            await CarregarProdutos(); // atualiza estoques
+        }
+        catch (Exception ex) { _msg = ex.Message; _sucesso = false; }
+        finally { _processando = false; }
+    }
+
+    async Task CancelarVenda()
+    {
+        if (_venda == null || !Sessao.EmpresaId.HasValue) return;
+        await VendaService.CancelarAsync(_venda.Id, "Cancelado no PDV", Sessao.EmpresaId.Value);
+        _venda = null; _mostrarFinalizar = false; _msg = "";
+    }
+}

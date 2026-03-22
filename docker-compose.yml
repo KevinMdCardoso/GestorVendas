@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gestorvendas_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gestorvendas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gestorvendas_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=gestorvendas;Username=postgres;Password=postgres"
+      Jwt__Key: "GestorVendasChaveSecreta2024MinimoDe32Caracteres!"
+      Jwt__Issuer: "GestorVendas"
+      Jwt__Audience: "GestorVendas"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

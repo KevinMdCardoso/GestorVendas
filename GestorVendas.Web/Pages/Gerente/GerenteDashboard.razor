@@ -1,0 +1,171 @@
+@page "/gerente/dashboard"
+@attribute [Authorize(Roles = "Gerente")]
+@inject IDashboardService DashboardService
+@inject SessaoService Sessao
+
+<PageTitle>Painel — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Painel</h4>
+        <p class="text-muted small mb-0">@Sessao.NomeExibicao · @DateTime.Now.ToString("dddd, dd 'de' MMMM", new System.Globalization.CultureInfo("pt-BR"))</p>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm" @onclick="Carregar">
+        <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+    </button>
+</div>
+
+@if (_dashboard == null)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else
+{
+    @* Métricas *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Vendas hoje</div>
+                        <div class="metric-value">R$ @_dashboard.VendasHoje.ToString("N2")</div>
+                        <div class="metric-sub up"><i class="bi bi-arrow-up-short"></i>@_dashboard.PedidosHoje pedidos</div>
+                    </div>
+                    <div class="metric-icon" style="background:#eff6ff">
+                        <i class="bi bi-currency-dollar text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Esta semana</div>
+                        <div class="metric-value">R$ @_dashboard.VendasSemana.ToString("N2")</div>
+                        <div class="metric-sub" style="color:#64748b">@_dashboard.PedidosSemana pedidos</div>
+                    </div>
+                    <div class="metric-icon" style="background:#f0fdf4">
+                        <i class="bi bi-calendar-week text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Este mês</div>
+                        <div class="metric-value">R$ @_dashboard.VendasMes.ToString("N2")</div>
+                        <div class="metric-sub" style="color:#64748b">@_dashboard.PedidosMes pedidos</div>
+                    </div>
+                    <div class="metric-icon" style="background:#fefce8">
+                        <i class="bi bi-calendar-month" style="color:#f59e0b"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="metric-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="metric-label">Ticket médio hoje</div>
+                        <div class="metric-value">R$ @_dashboard.TicketMedioHoje.ToString("N2")</div>
+                        @if (_dashboard.AlertasEstoque > 0)
+                        {
+                            <div class="metric-sub warn"><i class="bi bi-exclamation-triangle-fill me-1"></i>@_dashboard.AlertasEstoque alertas</div>
+                        }
+                    </div>
+                    <div class="metric-icon" style="background:#fff1f2">
+                        <i class="bi bi-receipt text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Alerta estoque *@
+    @if (_dashboard.EstoqueBaixo.Any())
+    {
+        <div class="alerta-estoque mb-4">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>@_dashboard.EstoqueBaixo.Count produto(s)</strong> com estoque abaixo do mínimo.
+            <a href="/gerente/estoque" class="ms-2 fw-medium" style="color:#92400e">Ver estoque →</a>
+        </div>
+    }
+
+    <div class="row g-3">
+        @* Últimas vendas *@
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock-history me-2"></i>Últimas vendas</span>
+                    <a href="/gerente/vendas" class="btn btn-link btn-sm p-0">Ver todas</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead><tr>
+                                <th>Número</th><th>Total</th><th>Pagamento</th><th>Hora</th>
+                            </tr></thead>
+                            <tbody>
+                                @foreach (var v in _dashboard.UltimasVendas)
+                                {
+                                    <tr>
+                                        <td class="fw-medium">@v.Numero</td>
+                                        <td>R$ @v.Total.ToString("N2")</td>
+                                        <td><span class="badge bg-light text-dark border">@v.FormaPagamento</span></td>
+                                        <td class="text-muted small">@v.DataVenda.ToLocalTime().ToString("HH:mm")</td>
+                                    </tr>
+                                }
+                                @if (!_dashboard.UltimasVendas.Any())
+                                {
+                                    <tr><td colspan="4" class="text-center text-muted py-4 small">Nenhuma venda hoje.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Mais vendidos *@
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-trophy me-2"></i>Mais vendidos (mês)
+                </div>
+                <div class="card-body p-0">
+                    @foreach (var (p, i) in _dashboard.MaisVendidos.Select((p, i) => (p, i + 1)))
+                    {
+                        <div class="d-flex align-items-center px-3 py-2 border-bottom">
+                            <span class="badge rounded-pill me-3" style="background:#f1f5f9;color:#64748b;min-width:24px">@i</span>
+                            <div class="flex-grow-1">
+                                <div class="small fw-medium">@p.Nome</div>
+                                <div style="font-size:.7rem;color:#94a3b8">@p.QuantidadeVendida unidades</div>
+                            </div>
+                            <span class="small fw-medium text-success">R$ @p.ReceitaTotal.ToString("N2")</span>
+                        </div>
+                    }
+                    @if (!_dashboard.MaisVendidos.Any())
+                    {
+                        <div class="text-center text-muted py-4 small">Sem dados este mês.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    DashboardDto? _dashboard;
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _dashboard = null;
+        _dashboard = await DashboardService.ObterAsync(Sessao.EmpresaId.Value);
+    }
+}

@@ -1,0 +1,84 @@
+@page "/gerente/configuracoes"
+@attribute [Authorize(Roles = "Gerente")]
+@inject IConfiguracaoService ConfigService
+@inject SessaoService Sessao
+
+<PageTitle>Configurações — Gestor de Vendas</PageTitle>
+
+<div class="mb-4">
+    <h4 class="fw-bold mb-0">Configurações</h4>
+    <p class="text-muted small mb-0">Parâmetros da empresa</p>
+</div>
+
+@if (!string.IsNullOrEmpty(_msg))
+{
+    <div class="alert @(_sucesso?"alert-success":"alert-danger") py-2 small mb-3">@_msg</div>
+}
+
+@if (_config == null)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else
+{
+    <div class="card" style="max-width:480px">
+        <div class="card-header"><i class="bi bi-gear me-2"></i>Parâmetros do PDV</div>
+        <div class="card-body">
+            <div class="mb-4">
+                <label class="form-label">
+                    Desconto máximo permitido ao gerente (%)
+                    <span class="text-muted small d-block fw-normal">0 = descontos desativados</span>
+                </label>
+                <div class="input-group" style="max-width:200px">
+                    <input @bind="_descontoMax" type="number" min="0" max="100" step="0.5" class="form-control" />
+                    <span class="input-group-text">%</span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">
+                    Alerta de estoque mínimo
+                    <span class="text-muted small d-block fw-normal">Alertar quando estoque ≤ esta quantidade</span>
+                </label>
+                <div class="input-group" style="max-width:200px">
+                    <input @bind="_alertaQtd" type="number" min="1" class="form-control" />
+                    <span class="input-group-text">un</span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" @onclick="Salvar" disabled="@_salvando">
+                <i class="bi bi-check2 me-1"></i>@(_salvando ? "Salvando..." : "Salvar configurações")
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    ConfiguracaoDto? _config;
+    decimal _descontoMax;
+    int _alertaQtd;
+    bool _salvando, _sucesso;
+    string _msg = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _config = await ConfigService.ObterAsync(Sessao.EmpresaId.Value);
+        _descontoMax = _config.DescontoMaximoPermitido;
+        _alertaQtd = _config.EstoqueAlertaQuantidade;
+    }
+
+    async Task Salvar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _salvando = true;
+        try
+        {
+            _config = await ConfigService.AtualizarAsync(Sessao.EmpresaId.Value,
+                new AtualizarConfiguracaoRequest(_descontoMax, _alertaQtd));
+            _msg = "Configurações salvas!"; _sucesso = true;
+        }
+        catch (Exception ex) { _msg = ex.Message; _sucesso = false; }
+        finally { _salvando = false; }
+    }
+}

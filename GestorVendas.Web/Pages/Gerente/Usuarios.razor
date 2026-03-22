@@ -1,0 +1,162 @@
+@* ── USUÁRIOS (GERENTE) ────────────────────────────────────── *@
+@page "/gerente/usuarios"
+@attribute [Authorize(Roles = "Gerente")]
+@inject IUsuarioService UsuarioService
+@inject SessaoService Sessao
+
+<PageTitle>Usuários — Gestor de Vendas</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Usuários</h4>
+        <p class="text-muted small mb-0">Operadores desta empresa</p>
+    </div>
+    <button class="btn btn-primary" @onclick="AbrirNovo">
+        <i class="bi bi-person-plus me-1"></i>Novo operador
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(_msg))
+{
+    <div class="alert @(_sucesso?"alert-success":"alert-danger") py-2 small mb-3">@_msg</div>
+}
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0 align-middle">
+            <thead><tr>
+                <th>Nome</th><th>Login</th><th>Perfil</th><th>Status</th><th class="text-end">Ações</th>
+            </tr></thead>
+            <tbody>
+                @if (_usuarios == null)
+                {
+                    <tr><td colspan="5" class="text-center py-4">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                    </td></tr>
+                }
+                else foreach (var u in _usuarios)
+                {
+                    <tr>
+                        <td class="fw-medium">@u.Nome</td>
+                        <td class="text-muted">@u.Login</td>
+                        <td><span class="badge @(u.Perfil==PerfilUsuario.Gerente?"bg-primary":"bg-secondary")">
+                            @u.Perfil
+                        </span></td>
+                        <td><span class="badge @(u.Ativo?"bg-success":"bg-light text-muted")">
+                            @(u.Ativo?"Ativo":"Inativo")
+                        </span></td>
+                        <td class="text-end">
+                            <button class="btn btn-link btn-sm text-primary p-0 me-2"
+                                    @onclick="()=>AbrirEdicao(u)">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            @if (u.Ativo && u.Perfil == PerfilUsuario.Operador)
+                            {
+                                <button class="btn btn-link btn-sm text-danger p-0"
+                                        @onclick="()=>Desativar(u.Id)">
+                                    <i class="bi bi-person-x"></i>
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (_modal)
+{
+    <div class="modal d-block" style="background:rgba(0,0,0,.45)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(_editando==null?"Novo operador":"Editar usuário")</h5>
+                    <button class="btn-close" @onclick="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nome *</label>
+                            <input @bind="_nome" class="form-control" />
+                        </div>
+                        @if (_editando == null)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label">Login *</label>
+                                <input @bind="_login" class="form-control" />
+                            </div>
+                        }
+                        <div class="col-md-6">
+                            <label class="form-label">@(_editando==null?"Senha *":"Nova senha (deixe em branco para não alterar)")</label>
+                            <input @bind="_senha" type="password" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="Fechar">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="Salvar" disabled="@_salvando">
+                        @(_salvando?"Salvando...":"Salvar")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    IEnumerable<UsuarioDto>? _usuarios;
+    UsuarioDto? _editando;
+    bool _modal, _salvando, _sucesso;
+    string _msg="", _nome="", _login="", _senha="";
+
+    protected override async Task OnInitializedAsync() => await Carregar();
+
+    async Task Carregar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _usuarios = await UsuarioService.ListarPorEmpresaAsync(Sessao.EmpresaId.Value);
+    }
+
+    void AbrirNovo() { _editando=null; _nome=""; _login=""; _senha=""; _modal=true; }
+
+    void AbrirEdicao(UsuarioDto u)
+    {
+        _editando=u; _nome=u.Nome; _login=u.Login; _senha=""; _modal=true;
+    }
+
+    void Fechar() { _modal=false; }
+
+    async Task Salvar()
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        _salvando=true;
+        try
+        {
+            if (_editando==null)
+                await UsuarioService.CriarAsync(
+                    new CriarUsuarioRequest(_nome, _login, _senha, PerfilUsuario.Operador, Sessao.EmpresaId),
+                    Sessao.EmpresaId.Value);
+            else
+                await UsuarioService.AtualizarAsync(_editando.Id,
+                    new AtualizarUsuarioRequest(_nome, string.IsNullOrEmpty(_senha) ? null : _senha));
+
+            _msg=_editando==null?"Operador criado!":"Usuário atualizado!"; _sucesso=true;
+            await Carregar(); Fechar();
+        }
+        catch(Exception ex){ _msg=ex.Message; _sucesso=false; }
+        finally{ _salvando=false; }
+    }
+
+    async Task Desativar(Guid id)
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        try
+        {
+            await UsuarioService.DesativarAsync(id);
+            _msg="Operador desativado."; _sucesso=true;
+            await Carregar();
+        }
+        catch(Exception ex){ _msg=ex.Message; _sucesso=false; }
+    }
+}
