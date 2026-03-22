@@ -27,10 +27,5 @@ USER appuser
 
 COPY --from=build /app/publish .
 
-# Railway injeta a variável PORT automaticamente
-ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
-ENV ASPNETCORE_ENVIRONMENT=Production
-
-EXPOSE 8080
-
-ENTRYPOINT ["dotnet", "GestorVendas.Web.dll"]
+# Railway injeta PORT em runtime — CMD shell form avalia a variável no momento da execução
+CMD ASPNETCORE_URLS="http://+:${PORT:-8080}" dotnet GestorVendas.Web.dll

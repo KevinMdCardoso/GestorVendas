@@ -15,8 +15,12 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
-    var appUrl = config["applicationUrl"] ?? "https://localhost:57871";
-    var baseUrl = appUrl.Split(';').FirstOrDefault() ?? "https://localhost:57871";
+
+    // Em produção usa localhost:PORT (Railway) ou a variável applicationUrl
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    var fallback = $"http://localhost:{port}";
+    var appUrl = config["applicationUrl"] ?? fallback;
+    var baseUrl = appUrl.Split(';').FirstOrDefault() ?? fallback;
 
     var handler = new HttpClientHandler();
 
