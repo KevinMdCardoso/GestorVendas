@@ -20,9 +20,7 @@ public class SessaoService
         _nav = nav;
     }
 
-    public Guid UsuarioId => Usuario != null
-        ? Guid.Parse(GetClaim(ClaimTypes.NameIdentifier) ?? Guid.Empty.ToString())
-        : Guid.Empty;
+    public Guid UsuarioId => Usuario?.UsuarioId ?? Guid.Empty;
 
     public Guid? EmpresaId => Usuario?.EmpresaId;
     public PerfilUsuario Perfil => Usuario?.Perfil ?? PerfilUsuario.Operador;
@@ -57,11 +55,11 @@ public class SessaoService
     {
         if (principal?.Identity?.IsAuthenticated == true)
         {
-            // Reconstrói a sessão a partir dos claims
             var nome = principal.FindFirst(ClaimTypes.Name)?.Value ?? "";
             var perfilStr = principal.FindFirst("perfil")?.Value ?? "2";
             var nomeExibicao = principal.FindFirst("nomeExibicao")?.Value ?? "Gestor de Vendas";
             var empresaIdStr = principal.FindFirst("empresaId")?.Value;
+            var usuarioIdStr = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (int.TryParse(perfilStr, out var perfilInt))
             {
@@ -71,7 +69,8 @@ public class SessaoService
                     Perfil: (PerfilUsuario)perfilInt,
                     EmpresaId: Guid.TryParse(empresaIdStr, out var eid) ? eid : null,
                     NomeEmpresaOuSistema: nomeExibicao,
-                    Expiracao: DateTime.UtcNow.AddHours(10)
+                    Expiracao: DateTime.UtcNow.AddHours(10),
+                    UsuarioId: Guid.TryParse(usuarioIdStr, out var uid) ? uid : Guid.Empty
                 );
                 _principal = principal;
                 OnChange?.Invoke();

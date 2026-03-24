@@ -198,12 +198,11 @@ public class VendaService : IVendaService
             var novaQtd = itemExistente.Quantidade + req.Quantidade;
             if (produto.EstoqueAtual < novaQtd)
                 throw new InvalidOperationException($"Estoque insuficiente. Disponível: {produto.EstoqueAtual}");
-            itemExistente.Quantidade = novaQtd;
             itemExistente.Total = itemExistente.Quantidade * itemExistente.PrecoUnitario;
         }
         else
         {
-            venda.Itens.Add(new ItemVenda
+            var novoItem = new ItemVenda
             {
                 VendaId = vendaId,
                 ProdutoId = req.ProdutoId,
@@ -211,7 +210,9 @@ public class VendaService : IVendaService
                 PrecoUnitario = produto.PrecoVenda,
                 Quantidade = req.Quantidade,
                 Total = req.Quantidade * produto.PrecoVenda
-            });
+            };
+            await _uow.ItensVenda.AdicionarAsync(novoItem);
+            venda.Itens.Add(novoItem);
         }
 
         RecalcularTotais(venda);

@@ -11,7 +11,8 @@ public record LoginResponse(
     PerfilUsuario Perfil,
     Guid? EmpresaId,
     string NomeEmpresaOuSistema,
-    DateTime Expiracao
+    DateTime Expiracao,
+    Guid UsuarioId = default
 );
 
 // ── EMPRESA ───────────────────────────────────────────────────

@@ -39,7 +39,7 @@ public class AuthService : IAuthService
         var expiracao = DateTime.UtcNow.AddHours(10);
         var token = GerarToken(usuario.Id, usuario.Login, usuario.Nome, usuario.Perfil, usuario.EmpresaId, expiracao);
 
-        return new LoginResponse(token, usuario.Nome, usuario.Perfil, usuario.EmpresaId, nomeExibicao, expiracao);
+        return new LoginResponse(token, usuario.Nome, usuario.Perfil, usuario.EmpresaId, nomeExibicao, expiracao, usuario.Id);
     }
 
     private string GerarToken(Guid id, string login, string nome, Domain.Enums.PerfilUsuario perfil, Guid? empresaId, DateTime expiracao)

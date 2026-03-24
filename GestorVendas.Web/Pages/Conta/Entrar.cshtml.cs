@@ -30,7 +30,7 @@ public class EntrarModel : PageModel
 
             var claims = new List<Claim>
             {
-                new(ClaimTypes.NameIdentifier, Login),
+                new(ClaimTypes.NameIdentifier, resp.UsuarioId.ToString()),
                 new(ClaimTypes.Name, resp.Nome),
                 new(ClaimTypes.Role, resp.Perfil.ToString()),
                 new("perfil", ((int)resp.Perfil).ToString()),

@@ -58,6 +58,7 @@ public interface IUnitOfWork : IDisposable
     IUsuarioRepositorio Usuarios { get; }
     IProdutoRepositorio Produtos { get; }
     IVendaRepositorio Vendas { get; }
+    IRepositorio<ItemVenda> ItensVenda { get; }
     IMovimentacaoRepositorio Movimentacoes { get; }
     IConfiguracaoRepositorio Configuracoes { get; }
     Task<int> SalvarAsync();

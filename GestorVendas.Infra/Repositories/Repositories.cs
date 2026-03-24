@@ -21,7 +21,7 @@ public class Repositorio<T> : IRepositorio<T> where T : EntidadeBase
         await _set.ToListAsync();
 
     public async Task<T> AdicionarAsync(T entidade) { await _set.AddAsync(entidade); return entidade; }
-    public Task AtualizarAsync(T entidade) { _set.Update(entidade); return Task.CompletedTask; }
+    public Task AtualizarAsync(T entidade) { _ctx.Entry(entidade).State = EntityState.Modified; return Task.CompletedTask; }
 
     public async Task RemoverAsync(Guid id)
     {
@@ -188,6 +188,7 @@ public class UnitOfWork : IUnitOfWork
     public IUsuarioRepositorio Usuarios { get; }
     public IProdutoRepositorio Produtos { get; }
     public IVendaRepositorio Vendas { get; }
+    public IRepositorio<ItemVenda> ItensVenda { get; }
     public IMovimentacaoRepositorio Movimentacoes { get; }
     public IConfiguracaoRepositorio Configuracoes { get; }
 
@@ -198,6 +199,7 @@ public class UnitOfWork : IUnitOfWork
         Usuarios = new UsuarioRepositorio(ctx);
         Produtos = new ProdutoRepositorio(ctx);
         Vendas = new VendaRepositorio(ctx);
+        ItensVenda = new Repositorio<ItemVenda>(ctx);
         Movimentacoes = new MovimentacaoRepositorio(ctx);
         Configuracoes = new ConfiguracaoRepositorio(ctx);
     }
