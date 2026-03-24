@@ -95,6 +95,7 @@ public class VendaRepositorio : Repositorio<Venda>, IVendaRepositorio
 
     public async Task<IEnumerable<Venda>> ObterPorEmpresaEPeriodoAsync(Guid empresaId, DateTime inicio, DateTime fim) =>
         await _ctx.Vendas
+            .AsNoTracking()
             .Include(v => v.Itens)
             .Include(v => v.Usuario)
             .Where(v => v.EmpresaId == empresaId && v.DataVenda >= inicio && v.DataVenda <= fim)
@@ -131,7 +132,7 @@ public class VendaRepositorio : Repositorio<Venda>, IVendaRepositorio
                 && i.Venda.Status == StatusVenda.Finalizada
                 && i.Venda.DataVenda >= inicio && i.Venda.DataVenda <= fim)
             .GroupBy(i => i.ProdutoNome)
-            .Select(g => new { Nome = g.Key, Quantidade = g.Sum(i => i.Quantidade), Total = g.Sum(i => i.Total) })
+            .Select(g => new { Nome = g.Key, Quantidade = g.Sum(i => i.Quantidade), Total = g.Sum(i => i.Total * (1 - i.Venda.PercentualDesconto / 100)) })
             .OrderByDescending(x => x.Quantidade)
             .Take(top)
             .ToListAsync();

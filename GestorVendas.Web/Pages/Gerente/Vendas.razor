@@ -2,6 +2,7 @@
 @page "/operador/vendas"
 @attribute [Authorize(Roles = "Gerente,Operador")]
 @inject IVendaService VendaService
+@inject NavigationManager Nav
 @inject SessaoService Sessao
 
 <PageTitle>Vendas — Gestor de Vendas</PageTitle>
@@ -97,7 +98,14 @@
                                 </span>
                             </td>
                             <td>
-                                @if (Sessao.IsGerente && v.Status == "Finalizada")
+                                @if (Sessao.IsGerente && v.Status == "Aberta")
+                                {
+                                    <button class="btn btn-link btn-sm text-success p-0 me-2"
+                                            @onclick="()=>IrParaPDV(v.Id)">
+                                        Finalizar
+                                    </button>
+                                }
+                                @if (Sessao.IsGerente && (v.Status == "Finalizada" || v.Status == "Aberta"))
                                 {
                                     <button class="btn btn-link btn-sm text-danger p-0"
                                             @onclick="()=>ConfirmarCancelamento(v.Id, v.Numero)">
@@ -151,6 +159,8 @@
         _vendas = await VendaService.ListarAsync(Sessao.EmpresaId.Value,
             _inicio, _fim.AddDays(1).AddTicks(-1));
     }
+
+    void IrParaPDV(Guid id) => Nav.NavigateTo($"/gerente/pdv?vendaId={id}");
 
     void ConfirmarCancelamento(Guid id, string numero)
     {

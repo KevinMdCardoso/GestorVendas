@@ -133,7 +133,9 @@ public record FinalizarVendaRequest(
     FormaPagamento FormaPagamento,
     decimal? ValorRecebido,
     decimal PercentualDesconto, // 0 se operador, preenchido pelo gerente
-    string? Observacao
+    string? Observacao,
+    string? ClienteNome = null,
+    string? ClienteCpf = null
 );
 
 public record ItemVendaDto(
@@ -158,7 +160,9 @@ public record VendaDto(
     decimal? Troco,
     string Status,
     string? UsuarioNome,
-    List<ItemVendaDto> Itens
+    List<ItemVendaDto> Itens,
+    string? ClienteNome = null,
+    string? ClienteCpf = null
 );
 
 public record VendaResumoDto(

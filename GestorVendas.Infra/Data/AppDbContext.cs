@@ -86,6 +86,8 @@ public class AppDbContext : DbContext
             e.Property(x => x.ValorRecebido).HasPrecision(18, 2);
             e.Property(x => x.Troco).HasPrecision(18, 2);
             e.Property(x => x.Observacao).HasMaxLength(500);
+            e.Property(x => x.ClienteNome).HasMaxLength(200);
+            e.Property(x => x.ClienteCpf).HasMaxLength(20);
             e.HasOne(x => x.Empresa).WithMany(emp => emp.Vendas)
                 .HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Usuario).WithMany(u => u.Vendas)

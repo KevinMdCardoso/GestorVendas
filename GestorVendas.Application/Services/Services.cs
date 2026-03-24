@@ -198,7 +198,8 @@ public class VendaService : IVendaService
             var novaQtd = itemExistente.Quantidade + req.Quantidade;
             if (produto.EstoqueAtual < novaQtd)
                 throw new InvalidOperationException($"Estoque insuficiente. Disponível: {produto.EstoqueAtual}");
-            itemExistente.Total = itemExistente.Quantidade * itemExistente.PrecoUnitario;
+            itemExistente.Quantidade = novaQtd;
+            itemExistente.Total = novaQtd * itemExistente.PrecoUnitario;
         }
         else
         {
@@ -212,7 +213,6 @@ public class VendaService : IVendaService
                 Total = req.Quantidade * produto.PrecoVenda
             };
             await _uow.ItensVenda.AdicionarAsync(novoItem);
-            venda.Itens.Add(novoItem);
         }
 
         RecalcularTotais(venda);
@@ -259,6 +259,8 @@ public class VendaService : IVendaService
         venda.FormaPagamento = req.FormaPagamento;
         venda.ValorRecebido = req.ValorRecebido;
         venda.Observacao = req.Observacao;
+        venda.ClienteNome = string.IsNullOrWhiteSpace(req.ClienteNome) ? null : req.ClienteNome;
+        venda.ClienteCpf = string.IsNullOrWhiteSpace(req.ClienteCpf) ? null : req.ClienteCpf;
         venda.Status = StatusVenda.Finalizada;
         venda.DataVenda = DateTime.UtcNow;
         RecalcularTotais(venda);
@@ -355,7 +357,7 @@ public class VendaService : IVendaService
         return lista.Select(v => new VendaResumoDto(
             v.Id, v.Numero, v.DataVenda, v.Total,
             v.FormaPagamento.ToString(), v.Status.ToString(),
-            v.Itens.Count, v.Usuario?.Nome));
+            v.Itens.Sum(i => i.Quantidade), v.Usuario?.Nome));
     }
 
     private static void RecalcularTotais(Venda v)
@@ -371,7 +373,8 @@ public class VendaService : IVendaService
         v.ValorRecebido, v.Troco, v.Status.ToString(), v.Usuario?.Nome,
         v.Itens.Select(i => new ItemVendaDto(
             i.Id, i.ProdutoId, i.ProdutoNome, i.PrecoUnitario, i.Quantidade, i.Total))
-        .ToList());
+        .ToList(),
+        v.ClienteNome, v.ClienteCpf);
 }
 
 // ── DASHBOARD SERVICE ─────────────────────────────────────────
@@ -405,7 +408,7 @@ public class DashboardService : IDashboardService
             estoqueBaixo.Count(),
             ultimasVendas.OrderByDescending(v => v.DataVenda).Take(8)
                 .Select(v => new VendaResumoDto(v.Id, v.Numero, v.DataVenda, v.Total,
-                    v.FormaPagamento.ToString(), v.Status.ToString(), v.Itens.Count, v.Usuario?.Nome))
+                    v.FormaPagamento.ToString(), v.Status.ToString(), v.Itens.Sum(i => i.Quantidade), v.Usuario?.Nome))
                 .ToList(),
             estoqueBaixo.Select(p => new ProdutoEstoqueBaixoDto(
                 p.Id, p.Nome, p.EstoqueAtual, p.EstoqueMinimo, p.StatusEstoque.ToString()))

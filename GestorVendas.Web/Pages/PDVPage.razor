@@ -5,6 +5,7 @@
 @inject IVendaService VendaService
 @inject IConfiguracaoService ConfigService
 @inject SessaoService Sessao
+@inject NavigationManager Nav
 
 <PageTitle>Caixa / PDV — Gestor de Vendas</PageTitle>
 
@@ -63,6 +64,22 @@
             </div>
 
             <div class="card-body d-flex flex-column p-0">
+                @* Identificação do cliente (opcional) *@
+                <div class="px-3 pt-2 pb-1 border-bottom">
+                    <div class="row g-1">
+                        <div class="col-7">
+                            <input @bind="_clienteNome" @bind:event="oninput"
+                                   class="form-control form-control-sm"
+                                   placeholder="Nome do cliente (opcional)" />
+                        </div>
+                        <div class="col-5">
+                            <input @bind="_clienteCpf" @bind:event="oninput"
+                                   class="form-control form-control-sm"
+                                   placeholder="CPF (opcional)" />
+                        </div>
+                    </div>
+                </div>
+
                 @* Itens *@
                 <div class="flex-grow-1 overflow-auto px-3" style="max-height:380px">
                     @if (_venda == null || !_venda.Itens.Any())
@@ -196,7 +213,7 @@
 @code {
     List<ProdutoDto> _produtos = new();
     VendaDto? _venda;
-    string _busca = "", _msg = "";
+    string _busca = "", _msg = "", _clienteNome = "", _clienteCpf = "";
     bool _carregando, _processando, _mostrarFinalizar, _sucesso;
     FormaPagamento _formaPagamento = FormaPagamento.Dinheiro;
     decimal _valorRecebido, _desconto, _descontoMax;
@@ -208,6 +225,22 @@
         {
             var cfg = await ConfigService.ObterAsync(Sessao.EmpresaId.Value);
             _descontoMax = cfg.DescontoMaximoPermitido;
+        }
+
+        // Carrega venda existente se vendaId foi passado via query string
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("vendaId", out var vendaIdStr)
+            && Guid.TryParse(vendaIdStr, out var vendaId)
+            && Sessao.EmpresaId.HasValue)
+        {
+            try
+            {
+                _venda = await VendaService.ObterAsync(vendaId, Sessao.EmpresaId.Value);
+                _clienteNome = _venda.ClienteNome ?? "";
+                _clienteCpf = _venda.ClienteCpf ?? "";
+            }
+            catch { /* venda não encontrada, inicia em branco */ }
         }
     }
 
@@ -254,12 +287,15 @@
             _venda = await VendaService.FinalizarAsync(_venda.Id,
                 new FinalizarVendaRequest(_formaPagamento,
                     _formaPagamento == FormaPagamento.Dinheiro && _valorRecebido > 0 ? _valorRecebido : null,
-                    pct, null),
+                    pct, null,
+                    string.IsNullOrWhiteSpace(_clienteNome) ? null : _clienteNome,
+                    string.IsNullOrWhiteSpace(_clienteCpf) ? null : _clienteCpf),
                 Sessao.EmpresaId.Value);
             _msg = $"✓ Venda {_venda.Numero} finalizada! Total: R$ {_venda.Total:N2}";
             _sucesso = true;
             _mostrarFinalizar = false;
             _venda = null; _desconto = 0; _valorRecebido = 0;
+            _clienteNome = ""; _clienteCpf = "";
             _formaPagamento = FormaPagamento.Dinheiro;
             await CarregarProdutos(); // atualiza estoques
         }

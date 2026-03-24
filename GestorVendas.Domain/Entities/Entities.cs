@@ -106,6 +106,10 @@ public class Venda : EntidadeBase
     public Usuario? Usuario { get; set; }
     public ICollection<ItemVenda> Itens { get; set; } = new List<ItemVenda>();
 
+    // Identificação do cliente (opcional)
+    public string? ClienteNome { get; set; }
+    public string? ClienteCpf { get; set; }
+
     // Placeholder NF-e (módulo futuro)
     public string? NFeChaveAcesso { get; set; }
     public string? NFeStatus { get; set; }

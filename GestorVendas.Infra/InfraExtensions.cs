@@ -40,6 +40,12 @@ public static class InfraExtensions
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.EnsureCreatedAsync();
 
+        // Adiciona colunas de identificação do cliente caso não existam (compatível com DBs já criados)
+        await db.Database.ExecuteSqlRawAsync(
+            @"ALTER TABLE ""Vendas"" ADD COLUMN IF NOT EXISTS ""ClienteNome"" VARCHAR(200)");
+        await db.Database.ExecuteSqlRawAsync(
+            @"ALTER TABLE ""Vendas"" ADD COLUMN IF NOT EXISTS ""ClienteCpf"" VARCHAR(20)");
+
         // Verificar e atualizar senha do admin se necessário
         var admin = await db.Usuarios.FirstOrDefaultAsync(u => u.Login == "admin");
         if (admin != null && admin.SenhaHash != "zqycMHtjjh70OptBcCnOzw==:dzDnlFmaMH+oE9yUC0MeUN9kGJbCt8PruB8/Xjcpfao=")
