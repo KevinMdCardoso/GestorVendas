@@ -90,7 +90,7 @@
                             <td class="text-muted small">@v.DataVenda.ToLocalTime().ToString("dd/MM/yy HH:mm")</td>
                             <td>@v.QtdItens</td>
                             <td class="fw-medium">R$ @v.Total.ToString("N2")</td>
-                            <td><span class="badge bg-light text-dark border">@v.FormaPagamento</span></td>
+                            <td><span class="badge bg-light text-dark border">@(v.FormaPagamento == "0" ? "-" : v.FormaPagamento)</span></td>
                             <td class="text-muted small">@(v.UsuarioNome ?? "—")</td>
                             <td>
                                 <span class="badge @(v.Status=="Finalizada"?"bg-success":v.Status=="Cancelada"?"bg-danger":"bg-warning text-dark")">

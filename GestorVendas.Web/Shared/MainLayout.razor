@@ -10,7 +10,7 @@
             <div class="sidebar-header">
                 <div class="sidebar-logo">
                     <i class="bi bi-shop me-2"></i>
-                    <span class="sidebar-title">Gestor de Vendas</span>
+                        <span class="sidebar-title" style="text-transform: uppercase;">@(auth.User.FindFirst("nomeExibicao")?.Value ?? "Gestor de Vendas")</span>
                 </div>
             </div>
 
@@ -43,7 +43,7 @@
                         <i class="bi bi-bar-chart me-2"></i>Relatórios
                     </NavLink></li>
                     <li><NavLink href="/gerente/usuarios" class="sidebar-link">
-                        <i class="bi bi-people me-2"></i>Usuários
+                        <i class="bi bi-people me-2"></i>Operadores
                     </NavLink></li>
                     <li><NavLink href="/gerente/pdv" class="sidebar-link">
                         <i class="bi bi-cart me-2"></i>PDV
