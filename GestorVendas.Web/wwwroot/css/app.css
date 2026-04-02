@@ -236,9 +236,18 @@ body {
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: .75rem; top: .5rem; }
 
 /* ── Responsivo ───────────────────────────────────────────── */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 199;
+    display: none;
+}
+
 @media (max-width: 768px) {
     .sidebar { transform: translateX(-100%); }
     .sidebar.aberta { transform: translateX(0); }
+    .sidebar-overlay { display: block; }
     .main-content { margin-left: 0; }
     .topbar { display: flex !important; }
     .page-content { padding: 1rem; }
