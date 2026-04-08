@@ -160,12 +160,18 @@ else
 @code {
     DashboardDto? _dashboard;
 
-    protected override async Task OnInitializedAsync() => await Carregar();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await Carregar();
+    }
 
     async Task Carregar()
     {
         if (!Sessao.EmpresaId.HasValue) return;
         _dashboard = null;
+        StateHasChanged();
         _dashboard = await DashboardService.ObterAsync(Sessao.EmpresaId.Value);
+        StateHasChanged();
     }
 }

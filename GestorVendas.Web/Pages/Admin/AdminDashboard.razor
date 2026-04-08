@@ -101,6 +101,13 @@ else
 
 @code {
     IEnumerable<EmpresaDto>? _empresas;
-    protected override async Task OnInitializedAsync() =>
-        _empresas = await EmpresaService.ListarAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _empresas = await EmpresaService.ListarAsync();
+            StateHasChanged();
+        }
+    }
 }
