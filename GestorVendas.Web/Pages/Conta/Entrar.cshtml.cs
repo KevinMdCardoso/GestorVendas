@@ -61,6 +61,10 @@ public class EntrarModel : PageModel
 
             return LocalRedirect(destino);
         }
+        catch (UnauthorizedAccessException ex) when (ex.Message.Contains("inativo", StringComparison.OrdinalIgnoreCase))
+        {
+            return LocalRedirect("/login?erro=inativo");
+        }
         catch (UnauthorizedAccessException)
         {
             return LocalRedirect("/login?erro=credenciais");

@@ -1,6 +1,7 @@
 @page "/admin/empresas"
 @attribute [Authorize(Roles = "Admin")]
 @inject IEmpresaService EmpresaService
+@inject IWebHostEnvironment Env
 
 <PageTitle>Empresas — Gestor de Vendas</PageTitle>
 
@@ -101,6 +102,23 @@
                             <label class="form-label">E-mail</label>
                             <input @bind="_email" class="form-control" placeholder="contato@empresa.com" />
                         </div>
+                        <div class="col-12">
+                            <label class="form-label">Logo da empresa <span class="text-muted small">(opcional — PNG, JPG ou SVG, máx. 2 MB)</span></label>
+                            @if (!string.IsNullOrEmpty(_logoAtualUrl))
+                            {
+                                <div class="mb-2">
+                                    <img src="@_logoAtualUrl" alt="Logo atual" style="max-height:60px;max-width:200px;object-fit:contain;border:1px solid #dee2e6;border-radius:6px;padding:4px" />
+                                    <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2" @onclick="RemoverLogo">
+                                        <i class="bi bi-x-circle me-1"></i>Remover logo
+                                    </button>
+                                </div>
+                            }
+                            <InputFile OnChange="SelecionarLogo" accept="image/png,image/jpeg,image/svg+xml" class="form-control" />
+                            @if (!string.IsNullOrEmpty(_erroLogo))
+                            {
+                                <div class="text-danger small mt-1">@_erroLogo</div>
+                            }
+                        </div>
                         @if (_editando == null)
                         {
                             <div class="col-12"><hr class="my-1" /><h6 class="text-muted small text-uppercase">Gerente inicial</h6></div>
@@ -136,6 +154,9 @@
     bool _modal, _salvando, _sucesso;
     string _msg = "", _razaoSocial = "", _nomeFantasia = "", _cnpj = "",
            _telefone = "", _email = "", _gerenteNome = "", _gerenteLogin = "", _gerenteSenha = "";
+    string? _logoAtualUrl;
+    string _erroLogo = "";
+    IBrowserFile? _logoArquivo;
 
     protected override async Task OnInitializedAsync() =>
         _empresas = await EmpresaService.ListarAsync();
@@ -147,32 +168,70 @@
         _editando = e;
         _razaoSocial = e.RazaoSocial; _nomeFantasia = e.NomeFantasia;
         _telefone = e.Telefone ?? ""; _email = e.Email ?? "";
+        _logoAtualUrl = e.LogoUrl; _logoArquivo = null; _erroLogo = "";
         _modal = true;
     }
 
-    void LimparForm() => (_razaoSocial, _nomeFantasia, _cnpj, _telefone, _email,
-        _gerenteNome, _gerenteLogin, _gerenteSenha) = ("", "", "", "", "", "", "", "");
+    void LimparForm()
+    {
+        (_razaoSocial, _nomeFantasia, _cnpj, _telefone, _email,
+            _gerenteNome, _gerenteLogin, _gerenteSenha) = ("", "", "", "", "", "", "", "");
+        _logoAtualUrl = null; _logoArquivo = null; _erroLogo = "";
+    }
 
     void Fechar() { _modal = false; LimparForm(); }
+
+    void SelecionarLogo(InputFileChangeEventArgs e)
+    {
+        _erroLogo = "";
+        var arquivo = e.File;
+        if (arquivo.Size > 2 * 1024 * 1024)
+        {
+            _erroLogo = "O arquivo não pode ultrapassar 2 MB.";
+            _logoArquivo = null;
+            return;
+        }
+        _logoArquivo = arquivo;
+    }
+
+    void RemoverLogo()
+    {
+        _logoAtualUrl = null;
+        _logoArquivo = null;
+    }
 
     async Task Salvar()
     {
         _salvando = true;
         try
         {
+            string? novaLogoUrl = null;
+
             if (_editando == null)
             {
-                await EmpresaService.CriarAsync(new CriarEmpresaRequest(
+                var nova = await EmpresaService.CriarAsync(new CriarEmpresaRequest(
                     _razaoSocial, _nomeFantasia, _cnpj, _telefone, _email,
                     _gerenteNome, _gerenteLogin, _gerenteSenha));
+
+                if (_logoArquivo != null)
+                    novaLogoUrl = await EmpresaService.SalvarLogoAsync(nova.Id, _logoArquivo.Name,
+                        _logoArquivo.OpenReadStream(2 * 1024 * 1024), Env.WebRootPath);
+
                 _msg = "Empresa criada com sucesso!"; _sucesso = true;
             }
             else
             {
+                if (_logoArquivo != null)
+                    novaLogoUrl = await EmpresaService.SalvarLogoAsync(_editando.Id, _logoArquivo.Name,
+                        _logoArquivo.OpenReadStream(2 * 1024 * 1024), Env.WebRootPath);
+
                 await EmpresaService.AtualizarAsync(_editando.Id,
-                    new AtualizarEmpresaRequest(_razaoSocial, _nomeFantasia, _telefone, _email));
+                    new AtualizarEmpresaRequest(_razaoSocial, _nomeFantasia, _telefone, _email,
+                        _logoArquivo != null ? novaLogoUrl : _logoAtualUrl));
+
                 _msg = "Empresa atualizada!"; _sucesso = true;
             }
+
             _empresas = await EmpresaService.ListarAsync();
             Fechar();
         }

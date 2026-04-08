@@ -18,6 +18,7 @@ public class Empresa : EntidadeBase
     public string Cnpj { get; set; } = string.Empty;
     public string? Telefone { get; set; }
     public string? Email { get; set; }
+    public string? LogoUrl { get; set; }
 
     public ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
     public ICollection<Produto> Produtos { get; set; } = new List<Produto>();

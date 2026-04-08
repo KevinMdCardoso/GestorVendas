@@ -46,6 +46,10 @@ public static class InfraExtensions
         await db.Database.ExecuteSqlRawAsync(
             @"ALTER TABLE ""Vendas"" ADD COLUMN IF NOT EXISTS ""ClienteCpf"" VARCHAR(20)");
 
+        // Logo da empresa
+        await db.Database.ExecuteSqlRawAsync(
+            @"ALTER TABLE ""Empresas"" ADD COLUMN IF NOT EXISTS ""LogoUrl"" VARCHAR(500)");
+
         // Verificar e atualizar senha do admin se necessário
         var admin = await db.Usuarios.FirstOrDefaultAsync(u => u.Login == "admin");
         if (admin != null && admin.SenhaHash != "zqycMHtjjh70OptBcCnOzw==:dzDnlFmaMH+oE9yUC0MeUN9kGJbCt8PruB8/Xjcpfao=")

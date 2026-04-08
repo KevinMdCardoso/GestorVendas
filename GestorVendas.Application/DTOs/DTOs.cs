@@ -25,7 +25,8 @@ public record EmpresaDto(
     string? Email,
     bool Ativo,
     int TotalUsuarios,
-    int TotalProdutos
+    int TotalProdutos,
+    string? LogoUrl = null
 );
 
 public record CriarEmpresaRequest(
@@ -44,7 +45,8 @@ public record AtualizarEmpresaRequest(
     string RazaoSocial,
     string NomeFantasia,
     string? Telefone,
-    string? Email
+    string? Email,
+    string? LogoUrl = null
 );
 
 // ── USUÁRIO ───────────────────────────────────────────────────
@@ -68,7 +70,8 @@ public record CriarUsuarioRequest(
 
 public record AtualizarUsuarioRequest(
     string Nome,
-    string? NovaSenha
+    string? NovaSenha,
+    PerfilUsuario Perfil = PerfilUsuario.Operador
 );
 
 // ── PRODUTO ───────────────────────────────────────────────────

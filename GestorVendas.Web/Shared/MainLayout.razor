@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
+@inject SessaoService Sessao
+@inject IEmpresaService EmpresaService
 @implements IDisposable
 
 <AuthorizeView>
@@ -15,8 +17,15 @@
             <nav class="sidebar d-flex flex-column @(_sidebarAberta ? "aberta" : "")" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-logo">
-                    <i class="bi bi-shop me-2"></i>
+                    @if (!string.IsNullOrEmpty(_logoUrl))
+                    {
+                        <img src="@_logoUrl" alt="Logo" style="max-height:40px;max-width:140px;object-fit:contain" />
+                    }
+                    else
+                    {
+                        <i class="bi bi-shop me-2"></i>
                         <span class="sidebar-title" style="text-transform: uppercase;">@(auth.User.FindFirst("nomeExibicao")?.Value ?? "Gestor de Vendas")</span>
+                    }
                 </div>
             </div>
 
@@ -100,10 +109,31 @@
 
 @code {
     bool _sidebarAberta;
+    string? _logoUrl;
 
     protected override void OnInitialized()
     {
         Nav.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await CarregarLogoAsync();
+    }
+
+    async Task CarregarLogoAsync()
+    {
+        if (Sessao.EmpresaId.HasValue)
+        {
+            try
+            {
+                var empresa = await EmpresaService.ObterAsync(Sessao.EmpresaId.Value);
+                _logoUrl = empresa.LogoUrl;
+            }
+            catch { _logoUrl = null; }
+            StateHasChanged();
+        }
     }
 
     void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)

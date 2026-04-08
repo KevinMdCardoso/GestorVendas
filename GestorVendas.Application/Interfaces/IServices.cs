@@ -16,6 +16,7 @@ public interface IEmpresaService
     Task<EmpresaDto> CriarAsync(CriarEmpresaRequest request);
     Task<EmpresaDto> AtualizarAsync(Guid id, AtualizarEmpresaRequest request);
     Task DesativarAsync(Guid id);
+    Task<string> SalvarLogoAsync(Guid empresaId, string fileName, Stream conteudo, string webRootPath);
 }
 
 public interface IUsuarioService
@@ -25,6 +26,7 @@ public interface IUsuarioService
     Task<UsuarioDto> CriarAsync(CriarUsuarioRequest request, Guid empresaCriadorId);
     Task<UsuarioDto> AtualizarAsync(Guid id, AtualizarUsuarioRequest request);
     Task DesativarAsync(Guid id);
+    Task AtivarAsync(Guid id);
 }
 
 public interface IProdutoService

@@ -89,6 +89,8 @@ public class EmpresaService : IEmpresaService
         e.NomeFantasia = req.NomeFantasia;
         e.Telefone = req.Telefone;
         e.Email = req.Email;
+        if (req.LogoUrl != null)
+            e.LogoUrl = req.LogoUrl;
         e.AtualizadoEm = DateTime.UtcNow;
 
         await _uow.Empresas.AtualizarAsync(e);
@@ -109,9 +111,36 @@ public class EmpresaService : IEmpresaService
         await _uow.SalvarAsync();
     }
 
+    public async Task<string> SalvarLogoAsync(Guid empresaId, string fileName, Stream conteudo, string webRootPath)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        var logosDir = Path.Combine(webRootPath, "logos");
+        Directory.CreateDirectory(logosDir);
+
+        // Remove logo anterior da mesma empresa, se existir
+        foreach (var old in Directory.GetFiles(logosDir, $"{empresaId}.*"))
+            File.Delete(old);
+
+        var nomeArquivo = $"{empresaId}{ext}";
+        var caminho = Path.Combine(logosDir, nomeArquivo);
+        await using var fs = File.Create(caminho);
+        await conteudo.CopyToAsync(fs);
+
+        var logoUrl = $"/logos/{nomeArquivo}";
+
+        var e = await _uow.Empresas.ObterPorIdAsync(empresaId)
+            ?? throw new KeyNotFoundException("Empresa não encontrada.");
+        e.LogoUrl = logoUrl;
+        e.AtualizadoEm = DateTime.UtcNow;
+        await _uow.Empresas.AtualizarAsync(e);
+        await _uow.SalvarAsync();
+
+        return logoUrl;
+    }
+
     private static EmpresaDto ToDto(Empresa e, int totalUsuarios, int totalProdutos) => new(
         e.Id, e.RazaoSocial, e.NomeFantasia, e.Cnpj,
-        e.Telefone, e.Email, e.Ativo, totalUsuarios, totalProdutos);
+        e.Telefone, e.Email, e.Ativo, totalUsuarios, totalProdutos, e.LogoUrl);
 }
 
 // ── USUARIO SERVICE ───────────────────────────────────────────
@@ -171,6 +200,7 @@ public class UsuarioService : IUsuarioService
             ?? throw new KeyNotFoundException("Usuário não encontrado.");
 
         u.Nome = req.Nome;
+        u.Perfil = req.Perfil;
         if (!string.IsNullOrEmpty(req.NovaSenha))
             u.SenhaHash = _auth.HashSenha(req.NovaSenha);
         u.AtualizadoEm = DateTime.UtcNow;
@@ -185,6 +215,16 @@ public class UsuarioService : IUsuarioService
         var u = await _uow.Usuarios.ObterPorIdAsync(id)
             ?? throw new KeyNotFoundException("Usuário não encontrado.");
         u.Ativo = false;
+        u.AtualizadoEm = DateTime.UtcNow;
+        await _uow.Usuarios.AtualizarAsync(u);
+        await _uow.SalvarAsync();
+    }
+
+    public async Task AtivarAsync(Guid id)
+    {
+        var u = await _uow.Usuarios.ObterPorIdAsync(id)
+            ?? throw new KeyNotFoundException("Usuário não encontrado.");
+        u.Ativo = true;
         u.AtualizadoEm = DateTime.UtcNow;
         await _uow.Usuarios.AtualizarAsync(u);
         await _uow.SalvarAsync();

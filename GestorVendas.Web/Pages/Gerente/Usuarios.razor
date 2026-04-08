@@ -53,8 +53,17 @@
                             @if (u.Ativo)
                             {
                                 <button class="btn btn-link btn-sm text-danger p-0"
-                                        @onclick="()=>Desativar(u.Id)">
+                                        @onclick="()=>Desativar(u.Id)"
+                                        title="Desativar usuário">
                                     <i class="bi bi-person-x"></i>
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-link btn-sm text-success p-0"
+                                        @onclick="()=>Ativar(u.Id)"
+                                        title="Reativar usuário">
+                                    <i class="bi bi-person-check"></i>
                                 </button>
                             }
                         </td>
@@ -86,14 +95,14 @@
                                 <label class="form-label">Login *</label>
                                 <input @bind="_login" class="form-control" />
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Perfil *</label>
-                                <select @bind="_perfil" class="form-select">
-                                    <option value="@PerfilUsuario.Operador">Operador</option>
-                                    <option value="@PerfilUsuario.Gerente">Gerente</option>
-                                </select>
-                            </div>
                         }
+                        <div class="col-md-6">
+                            <label class="form-label">Perfil *</label>
+                            <select @bind="_perfil" class="form-select">
+                                <option value="@PerfilUsuario.Operador">Operador</option>
+                                <option value="@PerfilUsuario.Gerente">Gerente</option>
+                            </select>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">@(_editando==null?"Senha *":"Nova senha (deixe em branco para não alterar)")</label>
                             <input @bind="_senha" type="password" class="form-control" />
@@ -130,7 +139,7 @@
 
     void AbrirEdicao(UsuarioDto u)
     {
-        _editando=u; _nome=u.Nome; _login=u.Login; _senha=""; _modal=true;
+        _editando=u; _nome=u.Nome; _login=u.Login; _senha=""; _perfil=u.Perfil; _modal=true;
     }
 
     void Fechar() { _modal=false; }
@@ -147,7 +156,7 @@
                     Sessao.EmpresaId.Value);
             else
                 await UsuarioService.AtualizarAsync(_editando.Id,
-                    new AtualizarUsuarioRequest(_nome, string.IsNullOrEmpty(_senha) ? null : _senha));
+                    new AtualizarUsuarioRequest(_nome, string.IsNullOrEmpty(_senha) ? null : _senha, _perfil));
 
             _msg=_editando==null?"Usuário criado!":"Usuário atualizado!"; _sucesso=true;
             await Carregar(); Fechar();
@@ -163,6 +172,18 @@
         {
             await UsuarioService.DesativarAsync(id);
             _msg="Usuário desativado."; _sucesso=true;
+            await Carregar();
+        }
+        catch(Exception ex){ _msg=ex.Message; _sucesso=false; }
+    }
+
+    async Task Ativar(Guid id)
+    {
+        if (!Sessao.EmpresaId.HasValue) return;
+        try
+        {
+            await UsuarioService.AtivarAsync(id);
+            _msg="Usuário reativado."; _sucesso=true;
             await Carregar();
         }
         catch(Exception ex){ _msg=ex.Message; _sucesso=false; }

@@ -19,9 +19,14 @@
 
                 @if (Erro is not null)
                 {
-                    <div class="alert alert-danger py-2 small mb-3">
+                    <div class="alert @(Erro == "inativo" ? "alert-warning" : "alert-danger") py-2 small mb-3">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        @(Erro == "credenciais" ? "Login ou senha inválidos." : "Erro ao conectar com o servidor. Tente novamente.")
+                        @(Erro switch
+                        {
+                            "credenciais" => "Login ou senha inválidos.",
+                            "inativo"     => "Sua conta está inativa. Entre em contato com um gerente ou administrador para reativá-la.",
+                            _             => "Erro ao conectar com o servidor. Tente novamente."
+                        })
                     </div>
                 }
 

@@ -14,7 +14,7 @@ public class Repositorio<T> : IRepositorio<T> where T : EntidadeBase
 
     public Repositorio(AppDbContext ctx) { _ctx = ctx; _set = ctx.Set<T>(); }
 
-    public async Task<T?> ObterPorIdAsync(Guid id) =>
+    public virtual async Task<T?> ObterPorIdAsync(Guid id) =>
         await _set.FirstOrDefaultAsync(e => e.Id == id);
 
     public async Task<IEnumerable<T>> ObterTodosAsync() =>
@@ -47,6 +47,11 @@ public class UsuarioRepositorio : Repositorio<Usuario>, IUsuarioRepositorio
 {
     public UsuarioRepositorio(AppDbContext ctx) : base(ctx) { }
 
+    public override async Task<Usuario?> ObterPorIdAsync(Guid id) =>
+        await _ctx.Usuarios
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == id);
+
     public async Task<Usuario?> ObterPorLoginAsync(string login) =>
         await _ctx.Usuarios
             .Include(u => u.Empresa)
@@ -55,7 +60,8 @@ public class UsuarioRepositorio : Repositorio<Usuario>, IUsuarioRepositorio
 
     public async Task<IEnumerable<Usuario>> ObterPorEmpresaAsync(Guid empresaId) =>
         await _ctx.Usuarios
-            .Where(u => u.EmpresaId == empresaId && u.Ativo)
+            .IgnoreQueryFilters()
+            .Where(u => u.EmpresaId == empresaId)
             .OrderBy(u => u.Nome).ToListAsync();
 
     public async Task<bool> LoginExisteAsync(string login, Guid? ignorarId = null) =>

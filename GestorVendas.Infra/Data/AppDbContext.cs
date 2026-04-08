@@ -29,6 +29,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Cnpj).HasMaxLength(20).IsRequired();
             e.Property(x => x.Telefone).HasMaxLength(20);
             e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.LogoUrl).HasMaxLength(500);
             e.HasQueryFilter(x => x.Ativo);
         });
 
